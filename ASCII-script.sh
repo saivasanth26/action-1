@@ -1,14 +1,11 @@
 #!/bin/bash
-
-# 1. Update package list (required for apt-get to find the package)
+# Update and install are required because runners start fresh each time
 sudo apt-get update
-
-# 2. Install cowsay
 sudo apt-get install cowsay -y
 
-# 3. Use the full path for cowsay (Ubuntu/Debian installs it to /usr/games/)
-/usr/games/cowsay -f dragon "Run for cover, I am a DRAGON...RAAR" > dragon.txt
+# Use the full path to the executable
+/usr/games/cowsay -f dragon "run for cover, I am a DRAGON" >> dragon.txt
 
-# 4. Display results
+# Verification steps
 cat dragon.txt
 ls -ltra
