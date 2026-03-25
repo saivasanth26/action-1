@@ -13,69 +13,49 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 public class TempAnalytics {
 
-    public static class TempMapper extends Mapper<LongWritable, Text, Text, Text> {
-        private String filterCity;
+	public static class TempMapper extends Mapper<LongWritable, Text, Text, Text> {
+		public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+			String[] fields = value.toString().split(",");
+			if (fields.length >= 3 && !fields[1].trim().isEmpty()) {
+				String cityName = fields[2].trim();
+				String temp = fields[1].trim();
+				String filterCity = context.getConfiguration().get("filterCity", "");
+				if (filterCity.isEmpty() || cityName.equalsIgnoreCase(filterCity)) {
+					context.write(new Text(cityName), new Text(temp));
+				}
+			}
+		}
+	}
 
-        @Override
-        protected void setup(Context context) {
-            // Get the city name passed from command line (Question 4d)
-            filterCity = context.getConfiguration().get("filterCity", "");
-        }
+	public static class TempReducer extends Reducer<Text, Text, Text, Text> {
+		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+			double maxTemp = Double.MIN_VALUE;
+			double minTemp = Double.MAX_VALUE;
+			int count = 0;
+			for (Text val : values) {
+				double currentTemp = Double.parseDouble(val.toString());
+				if (currentTemp > maxTemp) maxTemp = currentTemp;
+				if (currentTemp < minTemp) minTemp = currentTemp;
+				count++;
+			}
+			context.write(key, new Text("Max: " + maxTemp + ", Min: " + minTemp + ", DataPoints: " + count));
+		}
+	}
 
-        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-            // Fields: Date, AverageTemperature, City, Country, Latitude, Longitude
-            String[] fields = value.toString().split(",");
-
-            // Skip header or malformed rows
-            if (fields.length >= 3 && !fields[1].trim().isEmpty()) {
-                String cityName = fields[2].trim();
-                String temp = fields[1].trim();
-
-                // If a filter city is provided, only process that city
-                if (filterCity.isEmpty() || cityName.equalsIgnoreCase(filterCity)) {
-                    context.write(new Text(cityName), new Text(temp));
-                }
-            }
-        }
-    }
-
-    public static class TempReducer extends Reducer<Text, Text, Text, Text> {
-        public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-            double maxTemp = Double.MIN_VALUE;
-            double minTemp = Double.MAX_VALUE;
-            int count = 0;
-
-            for (Text val : values) {
-                double currentTemp = Double.parseDouble(val.toString());
-                if (currentTemp > maxTemp) maxTemp = currentTemp;
-                if (currentTemp < minTemp) minTemp = currentTemp;
-                count++;
-            }
-
-            String result = "Max: " + maxTemp + ", Min: " + minTemp + ", DataPoints: " + count;
-            context.write(key, new Text(result));
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
-        Configuration conf = new Configuration();
-        
-        // Handle Question 4d: Check if a 3rd argument (City Name) is passed
-        if (args.length > 2) {
-            conf.set("filterCity", args[2]);
-        }
-
-        Job job = Job.getInstance(conf, "temperature analytics");
-        job.setJarByClass(TempAnalytics.class);
-        job.setMapperClass(TempMapper.class);
-        job.setReducerClass(TempReducer.class);
-
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
-
-        FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[1]));
-
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
-    }
+	public static void main(String[] args) throws Exception {
+		Configuration conf = new Configuration();
+		if (args.length > 2) {
+			conf.set("filterCity", args[2]);
+		}
+		Job job = Job.getInstance(conf, "temperature-analytics");
+		job.setJarByClass(TempAnalytics.class);
+		job.setMapperClass(TempMapper.class);
+		job.setReducerClass(TempReducer.class);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(Text.class);
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+}
 }
