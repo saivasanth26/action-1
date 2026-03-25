@@ -2,7 +2,7 @@
 2 hdfs dfs -mkdir /wrdcnt
 3 hdfs dfs -mkdir /wrdcnt/inputs /wrdcnt/outputs
 4 hdfs dfs -put source desti
-5 hdfs jar_file_path input_path output_path
+5 hdfs jar_file_path package_name.file_name input_path output_path
 
 eclipse
 1 New project -> java -> javaSE 1.8
